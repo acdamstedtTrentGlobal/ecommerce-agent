@@ -8,7 +8,21 @@ CREATE TABLE products (
   name VARCHAR(255) NOT NULL,
   price DECIMAL(10, 2) NOT NULL,
   imageUrl VARCHAR(255) NOT NULL,
-  description TEXT NOT NULL
+  description TEXT NOT NULL,
+  stock INT UNSIGNED NOT NULL DEFAULT 0
+);
+
+-- Reviews table
+CREATE TABLE reviews (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  product_id INT UNSIGNED NOT NULL,
+  title VARCHAR(255) NOT NULL,
+  review_text TEXT NOT NULL,
+  review_date DATE NOT NULL,
+  rating TINYINT UNSIGNED NOT NULL,
+  embedding VECTOR(768) COMMENT 'Vector embeddings from Gemini',
+  CONSTRAINT chk_rating_range CHECK (rating BETWEEN 1 AND 5),
+  FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
 );
 
 -- Users table
@@ -19,6 +33,7 @@ CREATE TABLE users (
   password VARCHAR(255) NOT NULL,
   salutation VARCHAR(10),
   country VARCHAR(50),
+  role ENUM('user', 'admin') DEFAULT 'user',
   created_at DATETIME DEFAULT NOW()
 );
 
@@ -64,4 +79,25 @@ CREATE TABLE order_items (
   quantity INT NOT NULL DEFAULT 1,
   FOREIGN KEY (order_id) REFERENCES orders(id),
   FOREIGN KEY (product_id) REFERENCES products(id)
+);
+
+-- Documents table (one-to-one with products)
+CREATE TABLE documents (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  product_id INT UNSIGNED NOT NULL UNIQUE,
+  content TEXT NOT NULL,
+  created_at DATETIME DEFAULT NOW(),
+  updated_at DATETIME DEFAULT NOW() ON UPDATE NOW(),
+  FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
+);
+
+-- Document Chunks table (one-to-many with documents)
+CREATE TABLE document_chunks (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  document_id INT UNSIGNED NOT NULL,
+  chunk_text TEXT NOT NULL,
+  chunk_index INT UNSIGNED NOT NULL,
+  embedding VECTOR(768) NOT NULL COMMENT 'Vector embeddings from Gemini',
+  created_at DATETIME DEFAULT NOW(),
+  FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE CASCADE
 );
