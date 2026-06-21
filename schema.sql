@@ -2,14 +2,37 @@ CREATE DATABASE ecommerce;
 
 USE ecommerce;
 
+-- Categories table
+CREATE TABLE categories (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(100) NOT NULL UNIQUE
+);
+
 -- Products table
 CREATE TABLE products (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  category_id INT UNSIGNED NOT NULL,
   name VARCHAR(255) NOT NULL,
   price DECIMAL(10, 2) NOT NULL,
   imageUrl VARCHAR(255) NOT NULL,
   description TEXT NOT NULL,
-  stock INT UNSIGNED NOT NULL DEFAULT 0
+  stock INT UNSIGNED NOT NULL DEFAULT 0,
+  FOREIGN KEY (category_id) REFERENCES categories(id)
+);
+
+-- Tags table
+CREATE TABLE tags (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(50) NOT NULL UNIQUE
+);
+
+-- Product-Tags junction table (many-to-many)
+CREATE TABLE product_tags (
+  product_id INT UNSIGNED NOT NULL,
+  tag_id INT UNSIGNED NOT NULL,
+  PRIMARY KEY (product_id, tag_id),
+  FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
+  FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE
 );
 
 -- Reviews table
@@ -85,7 +108,8 @@ CREATE TABLE order_items (
 CREATE TABLE documents (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   product_id INT UNSIGNED NOT NULL UNIQUE,
-  content TEXT NOT NULL,
+  content TEXT NULL,
+  file_path VARCHAR(255) NULL,
   created_at DATETIME DEFAULT NOW(),
   updated_at DATETIME DEFAULT NOW() ON UPDATE NOW(),
   FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE

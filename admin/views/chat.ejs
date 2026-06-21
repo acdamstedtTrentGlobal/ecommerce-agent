@@ -1,0 +1,15 @@
+<%- include('partials/header', { title: 'Admin Chat', admin }) %>
+<h1 class="mb-3">Admin Chat</h1>
+
+<link rel="stylesheet" href="https://unpkg.com/quikchat/dist/quikchat.css">
+
+<div id="admin-chat" style="max-width: 720px; margin: 0 auto;"></div>
+<div id="admin-chat-charts" style="max-width: 720px; margin: 1rem auto 0;"></div>
+
+<script id="initialHistory" type="application/json"><%- JSON.stringify(history) %></script>
+
+<script src="https://unpkg.com/quikchat/dist/quikchat.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+<script src="/js/adminChatBot.js"></script>
+
+<%- include('partials/footer') %>

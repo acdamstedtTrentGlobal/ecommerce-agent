@@ -1,12 +1,46 @@
 USE ecommerce;
 
-INSERT INTO products (name, price, imageUrl, description, stock) VALUES
-('Complete Multivitamin for Adults', 29.99, 'https://picsum.photos/id/20/300/200', 'Daily multivitamin with 25+ vitamins and minerals for overall health and wellness', 150),
-('Whey Protein Isolate Powder', 49.99, 'https://picsum.photos/id/1/300/200', 'High-quality protein powder for muscle building and post-workout recovery', 100),
-('Omega-3 Fish Oil Softgels', 24.99, 'https://picsum.photos/id/26/300/200', 'Heart-healthy omega-3 fatty acids EPA and DHA for cardiovascular support', 200),
-('Vitamin D3 + K2 Capsules', 19.99, 'https://picsum.photos/id/96/300/200', 'Essential vitamins for bone health and immune system support', 180),
-('Probiotic Gut Health Complex', 34.99, 'https://picsum.photos/id/101/300/200', '50 billion CFU probiotic blend for digestive health and immunity', 120),
-('Melatonin Sleep Support Tablets', 14.99, 'https://picsum.photos/id/102/300/200', 'Natural sleep aid to help regulate sleep cycle and improve rest quality', 250);
+-- Categories
+INSERT INTO categories (name) VALUES
+('Vitamins & Minerals'),
+('Sports Nutrition'),
+('Heart Health'),
+('Bone & Immune'),
+('Digestive Health'),
+('Sleep Support');
+
+-- Products (with category_id)
+INSERT INTO products (category_id, name, price, imageUrl, description, stock) VALUES
+(1, 'Complete Multivitamin for Adults', 29.99, 'https://picsum.photos/id/20/300/200', 'Daily multivitamin with 25+ vitamins and minerals for overall health and wellness', 150),
+(2, 'Whey Protein Isolate Powder', 49.99, 'https://picsum.photos/id/1/300/200', 'High-quality protein powder for muscle building and post-workout recovery', 100),
+(3, 'Omega-3 Fish Oil Softgels', 24.99, 'https://picsum.photos/id/26/300/200', 'Heart-healthy omega-3 fatty acids EPA and DHA for cardiovascular support', 200),
+(4, 'Vitamin D3 + K2 Capsules', 19.99, 'https://picsum.photos/id/96/300/200', 'Essential vitamins for bone health and immune system support', 180),
+(5, 'Probiotic Gut Health Complex', 34.99, 'https://picsum.photos/id/101/300/200', '50 billion CFU probiotic blend for digestive health and immunity', 120),
+(6, 'Melatonin Sleep Support Tablets', 14.99, 'https://picsum.photos/id/102/300/200', 'Natural sleep aid to help regulate sleep cycle and improve rest quality', 250);
+
+-- Tags
+INSERT INTO tags (name) VALUES
+('adult'),
+('multivitamin'),
+('athlete'),
+('protein'),
+('cardio'),
+('omega-3'),
+('immune'),
+('bone'),
+('probiotic'),
+('gut'),
+('sleep'),
+('melatonin');
+
+-- Product-Tag associations
+INSERT INTO product_tags (product_id, tag_id) VALUES
+(1, 1), (1, 2),        -- Multivitamin: adult, multivitamin
+(2, 3), (2, 4),        -- Whey: athlete, protein
+(3, 5), (3, 6),        -- Fish Oil: cardio, omega-3
+(4, 7), (4, 8),        -- D3+K2: immune, bone
+(5, 9), (5, 10), (5, 7), -- Probiotic: probiotic, gut, immune
+(6, 11), (6, 12);      -- Melatonin: sleep, melatonin
 
 INSERT INTO users (name, email, password, salutation, country, role) VALUES
 ('Admin User', 'admin@example.com', '$2b$10$XZjZxZjZxZjZxZjZxZjZxZeXZjZxZjZxZjZxZjZxZjZxZjZxZjZxZjZ', 'Mr', 'USA', 'admin'),
