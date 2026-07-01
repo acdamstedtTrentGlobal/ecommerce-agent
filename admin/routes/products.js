@@ -47,9 +47,9 @@ router.get('/new', ensureAdmin, (req, res) => {
 
 // create
 router.post('/', ensureAdmin, upload.single('pdf'), async (req, res) => {
-  const { category_id, name, price, imageUrl, description, stock } = req.body;
+  const { category_id, name, brand, price, imageUrl, description, stock } = req.body;
   const tagIds = Array.isArray(req.body['tags[]']) ? req.body['tags[]'] : (req.body['tags[]'] ? [req.body['tags[]']] : []);
-  const productId = await productServices.createProduct({ category_id, name, price, imageUrl, description, stock });
+  const productId = await productServices.createProduct({ category_id, name, brand, price, imageUrl, description, stock });
   if (req.file) {
     await documentServices.upsert(productId, { file_path: `/uploads/${req.file.filename}`, content: null });
   }
@@ -72,9 +72,9 @@ router.get('/:id/edit', ensureAdmin, async (req, res) => {
 
 // update
 router.post('/:id', ensureAdmin, async (req, res) => {
-  const { category_id, name, price, imageUrl, description, stock } = req.body;
+  const { category_id, name, brand, price, imageUrl, description, stock } = req.body;
   const tagIds = Array.isArray(req.body['tags[]']) ? req.body['tags[]'] : (req.body['tags[]'] ? [req.body['tags[]']] : []);
-  await productServices.updateProduct(req.params.id, { category_id, name, price, imageUrl, description, stock });
+  await productServices.updateProduct(req.params.id, { category_id, name, brand, price, imageUrl, description, stock });
   await productServices.setProductTags(Number(req.params.id), tagIds.map(Number));
   res.redirect('/admin/products');
 });

@@ -1,4 +1,4 @@
--- CREATE DATABASE ecommerce;
+CREATE DATABASE ecommerce;
 
 USE ecommerce;
 
@@ -13,6 +13,7 @@ CREATE TABLE products (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   category_id INT UNSIGNED NOT NULL,
   name VARCHAR(255) NOT NULL,
+  brand VARCHAR(255) NOT NULL,
   price DECIMAL(10, 2) NOT NULL,
   imageUrl VARCHAR(255) NOT NULL,
   description TEXT NOT NULL,

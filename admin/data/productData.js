@@ -2,7 +2,7 @@ const pool = require('../../database');
 
 async function getAllProducts() {
   const [rows] = await pool.execute(
-    `SELECT p.id, p.name, CAST(p.price AS DOUBLE) AS price, p.imageUrl, p.description, p.stock,
+    `SELECT p.id, p.name, p.brand, CAST(p.price AS DOUBLE) AS price, p.imageUrl, p.description, p.stock,
             p.category_id, c.name AS category_name
      FROM products p
      JOIN categories c ON p.category_id = c.id`
@@ -12,25 +12,25 @@ async function getAllProducts() {
 
 async function getProductById(id) {
   const [rows] = await pool.execute(
-    `SELECT id, name, CAST(price AS DOUBLE) AS price, imageUrl, description, stock, category_id
+    `SELECT id, name, brand, CAST(price AS DOUBLE) AS price, imageUrl, description, stock, category_id
      FROM products WHERE id = ?`,
     [id]
   );
   return rows[0];
 }
 
-async function createProduct({ category_id, name, price, imageUrl, description, stock }) {
+async function createProduct({ category_id, name, brand, price, imageUrl, description, stock }) {
   const [r] = await pool.execute(
-    `INSERT INTO products (category_id, name, price, imageUrl, description, stock) VALUES (?, ?, ?, ?, ?, ?)`,
-    [category_id, name, price, imageUrl, description, stock]
+    `INSERT INTO products (category_id, name, brand, price, imageUrl, description, stock) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [category_id, name, brand, price, imageUrl, description, stock]
   );
   return r.insertId;
 }
 
-async function updateProduct(id, { category_id, name, price, imageUrl, description, stock }) {
+async function updateProduct(id, { category_id, name, brand, price, imageUrl, description, stock }) {
   await pool.execute(
-    `UPDATE products SET category_id = ?, name = ?, price = ?, imageUrl = ?, description = ?, stock = ? WHERE id = ?`,
-    [category_id, name, price, imageUrl, description, stock, id]
+    `UPDATE products SET category_id = ?, name = ?, brand = ?, price = ?, imageUrl = ?, description = ?, stock = ? WHERE id = ?`,
+    [category_id, name, brand, price, imageUrl, description, stock, id]
   );
 }
 

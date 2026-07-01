@@ -4,6 +4,7 @@ async function getAllProducts() {
     const [rows] = await pool.execute(
         `SELECT id, 
                 name,
+                brand,
                 CAST(price AS DOUBLE) AS price,
                 description,
                 imageUrl
