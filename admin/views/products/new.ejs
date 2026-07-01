@@ -55,5 +55,56 @@
     <button class="btn btn-primary" type="submit">Create</button>
     <a class="btn btn-secondary" href="/admin/products">Cancel</a>
   </div>
+  <div class="col-12">
+    <label class="form-label">AI Product Generator</label>
+    <div class="d-flex gap-2">
+      <input class="form-control" type="text" id="aiMessage" placeholder="e.g. Nature Made fish oil supplement, around $25" />
+      <button class="btn btn-outline-primary" type="button" id="aiGenerateBtn">Generate</button>
+    </div>
+  </div>
 </form>
+
+<script>
+  document.getElementById('aiGenerateBtn').addEventListener('click', async () => {
+    const message = document.getElementById('aiMessage').value;
+    if (!message) return;
+
+    const btn = document.getElementById('aiGenerateBtn');
+    btn.disabled = true;
+    btn.textContent = 'Generating...';
+
+    try {
+      const response = await fetch('/admin/products/ai/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message })
+      });
+
+      const product = await response.json();
+
+      document.querySelector('[name="name"]').value = product.name || '';
+      document.querySelector('[name="brand"]').value = product.brand || '';
+      document.querySelector('[name="price"]').value = product.price || '';
+      document.querySelector('[name="description"]').value = product.description || '';
+
+      // set category
+      if (product.category_id) {
+        document.querySelector('[name="category_id"]').value = product.category_id;
+      }
+
+      // set tags
+      document.querySelectorAll('[name="tags[]"]').forEach(cb => {
+        cb.checked = product.tag_ids?.includes(Number(cb.value));
+      });
+
+    } catch (err) {
+      console.error('AI generation failed:', err);
+      alert('Failed to generate product listing');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Generate';
+    }
+  });
+</script>
+
 <%- include('../partials/footer') %>
