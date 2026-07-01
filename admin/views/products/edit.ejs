@@ -49,6 +49,7 @@
   <div class="mt-3">
     <button class="btn btn-primary" type="submit">Save</button>
     <a class="btn btn-secondary" href="/admin/products">Cancel</a>
+    <button class="btn btn-outline-info" type="button" id="reviewsBtn">Summarize Reviews</button>
   </div>
 </form>
 
@@ -70,4 +71,27 @@
     <button class="btn btn-warning" type="submit">Chunk & Embed (Stub)</button>
   </form>
 </div>
+
+<script>
+  document.getElementById('reviewsBtn').addEventListener('click', async () => {
+    const btn = document.getElementById('reviewsBtn');
+    btn.disabled = true;
+    btn.textContent = 'Summarizing...';
+
+    try {
+      const response = await fetch('/admin/products/<%= product.id %>/reviews');
+      const data = await response.json();
+      
+      const description = document.querySelector('[name="description"]');
+      description.value += '\n\nWhat Others Are Saying\n' + data.summary;
+    } catch (err) {
+      console.error('Reviews fetch failed:', err);
+      alert('Failed to get reviews');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Summarize Reviews';
+    }
+  });
+</script>
+
 <%- include('../partials/footer') %>
