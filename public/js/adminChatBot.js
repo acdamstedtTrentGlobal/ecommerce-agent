@@ -43,9 +43,9 @@
 
   // Create the chat widget using quikchat
   const chat = new quikchat('#admin-chat', async function (chatInstance, msg) {
-    // Add user message to UI
     chatInstance.messageAddNew(msg, 'me', 'right', 'user');
 
+    let replyText = '(no reply)';
     try {
       const res = await fetch('/admin/chat/api', {
         method: 'POST',
@@ -53,28 +53,12 @@
         body: JSON.stringify({ message: msg })
       });
       const data = await res.json();
-
-      const replyText = (data && data.reply) || '(no reply)';
-
-      // Add bot text reply and capture its message ID
-      const replyId = chatInstance.messageAddNew(
-        replyText,
-        'bot',
-        'left',
-        'bot'
-      );
-
-      // If the server returns a chart config, render it inside the same message bubble
-      if (data && data.chart && replyId != null) {
-        const msgNode = chatInstance.messageGetDOMObject(replyId);
-        if (msgNode) {
-          renderApexChart(msgNode, data.chart);
-        }
-      }
+      replyText = (data && data.reply) || '(no reply)';
     } catch (err) {
       console.error('Error calling /admin/chat/api', err);
-      chatInstance.messageAddNew('Error contacting server.', 'bot', 'left', 'bot');
+      replyText = 'Error contacting server.';
     }
+    chatInstance.messageAddNew(replyText, 'bot', 'left', 'bot');
   });
 
   // Seed initial history into the widget
@@ -82,13 +66,12 @@
     initialHistory.forEach(function (item) {
       const text = item.text || '';
       if (!text) return;
-      const isUser = item.userAbbr === 'Y';
-      chat.messageAddNew(
-        text,
-        isUser ? 'me' : 'bot',
-        isUser ? 'right' : 'left',
-        isUser ? 'user' : 'bot'
-      );
+      chat.messageAddNew(item.text, item.role, item.side, item.role);
     });
   }
+
+  document.getElementById('clearHistoryBtn').addEventListener('click', async () => {
+    await fetch('/admin/chat/clear', { method: 'POST' });
+    window.location.reload();
+  });
 })();

@@ -3,12 +3,15 @@
 
 <link rel="stylesheet" href="https://unpkg.com/quikchat/dist/quikchat.css">
 
+<div class="d-flex justify-content-end mb-2" style="max-width: 720px; margin: 0 auto;">
+  <button class="btn btn-sm btn-outline-danger" id="clearHistoryBtn">Clear History</button>
+</div>
+
 <div id="admin-chat" style="max-width: 720px; margin: 0 auto;"></div>
-<div id="admin-chat-charts" style="max-width: 720px; margin: 1rem auto 0;"></div>
 
 <script id="initialHistory" type="application/json"><%- JSON.stringify(history) %></script>
 
-<script src="https://unpkg.com/quikchat/dist/quikchat.umd.min.js"></script>
+<script src="https://unpkg.com/quikchat/dist/quikchat-md.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
 <script src="/js/adminChatBot.js"></script>
 
