@@ -1,48 +1,31 @@
 (function () {
   const container = document.getElementById('admin-chat');
-  if (!container) {
-    console.error('admin-chat container not found');
-    return;
-  }
-  if (typeof quikchat !== 'function') {
-    console.error('quikchat library not loaded');
-    return;
-  }
+  if (!container) return;
+  if (typeof quikchat !== 'function') return;
 
   let initialHistory = [];
-  const historyScript = document.getElementById('initialHistory');
-  if (historyScript && historyScript.textContent) {
-    try {
-      initialHistory = JSON.parse(historyScript.textContent) || [];
-    } catch (e) {
-      console.error('Failed to parse initial history JSON', e);
-    }
-  }
+  try {
+    initialHistory = JSON.parse(document.getElementById('initialHistory').textContent) || [];
+  } catch (e) {}
 
-  function renderApexChart(targetElement, chartOptions) {
-    if (!window.ApexCharts) {
-      console.warn('ApexCharts not loaded; cannot render chart.');
-      return;
-    }
+  let activeSessionId = null;
+  try {
+    activeSessionId = JSON.parse(document.getElementById('activeSessionId').textContent);
+  } catch (e) {}
 
-    const chartDiv = document.createElement('div');
-    chartDiv.className = 'chat-apexchart';
-    chartDiv.style.width = '100%';
-    const height = (chartOptions && chartOptions.chart && chartOptions.chart.height) || 260;
-    chartDiv.style.height = height + 'px';
-    targetElement.appendChild(chartDiv);
-
-    try {
-      const chart = new window.ApexCharts(chartDiv, chartOptions);
-      chart.render();
-    } catch (e) {
-      console.error('Error rendering ApexChart', e);
-      chartDiv.textContent = 'Failed to render chart.';
-    }
-  }
-
-  // Create the chat widget using quikchat
   const chat = new quikchat('#admin-chat', async function (chatInstance, msg) {
+    // if no session, create one first
+    if (!activeSessionId) {
+      const r = await fetch('/admin/chat/sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      const data = await r.json();
+      activeSessionId = data.sessionId;
+      // update URL without reload
+      window.history.pushState({}, '', `/admin/chat?session=${activeSessionId}`);
+    }
+
     chatInstance.messageAddNew(msg, 'me', 'right', 'user');
 
     let replyText = '(no reply)';
@@ -50,7 +33,7 @@
       const res = await fetch('/admin/chat/api', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: msg })
+        body: JSON.stringify({ message: msg, sessionId: activeSessionId })
       });
       const data = await res.json();
       replyText = (data && data.reply) || '(no reply)';
@@ -61,17 +44,35 @@
     chatInstance.messageAddNew(replyText, 'bot', 'left', 'bot');
   });
 
-  // Seed initial history into the widget
+  // seed history
   if (Array.isArray(initialHistory) && initialHistory.length) {
     initialHistory.forEach(function (item) {
-      const text = item.text || '';
-      if (!text) return;
+      if (!item.text) return;
       chat.messageAddNew(item.text, item.role, item.side, item.role);
     });
   }
 
-  document.getElementById('clearHistoryBtn').addEventListener('click', async () => {
-    await fetch('/admin/chat/clear', { method: 'POST' });
-    window.location.reload();
+  document.getElementById('newChatBtn').addEventListener('click', async () => {
+    const r = await fetch('/admin/chat/sessions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    const data = await r.json();
+    window.location.href = `/admin/chat?session=${data.sessionId}`;
+  });
+
+  // delete session buttons
+  document.querySelectorAll('.delete-session-btn').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      e.preventDefault();
+      const sessionId = btn.dataset.sessionId;
+      await fetch(`/admin/chat/sessions/${sessionId}/delete`, { method: 'POST' });
+      // if deleting active session, go to base chat page
+      if (parseInt(sessionId) === activeSessionId) {
+        window.location.href = '/admin/chat';
+      } else {
+        window.location.reload();
+      }
+    });
   });
 })();

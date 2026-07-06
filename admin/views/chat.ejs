@@ -1,18 +1,38 @@
 <%- include('partials/header', { title: 'Admin Chat', admin }) %>
-<h1 class="mb-3">Admin Chat</h1>
 
 <link rel="stylesheet" href="https://unpkg.com/quikchat/dist/quikchat.css">
 
-<div class="d-flex justify-content-end mb-2" style="max-width: 720px; margin: 0 auto;">
-  <button class="btn btn-sm btn-outline-danger" id="clearHistoryBtn">Clear History</button>
+<div class="d-flex" style="height: calc(100vh - 120px);">
+
+  <!-- Sidebar -->
+  <div class="d-flex flex-column border-end pe-3 me-3" style="width: 240px; min-width: 240px;">
+    <button class="btn btn-primary btn-sm mb-3" id="newChatBtn">+ New Chat</button>
+    <div class="overflow-auto flex-grow-1">
+      <% sessions.forEach(s => { %>
+        <div class="d-flex align-items-center justify-content-between mb-1">
+          <a href="/admin/chat?session=<%= s.id %>"
+             class="text-truncate text-decoration-none <%= activeSessionId === s.id ? 'fw-bold' : '' %>"
+             style="max-width: 170px;">
+            <%= s.title %>
+          </a>
+          <button class="btn btn-sm btn-outline-danger py-0 px-1 delete-session-btn"
+                  data-session-id="<%= s.id %>">×</button>
+        </div>
+      <% }) %>
+    </div>
+  </div>
+
+  <!-- Chat area -->
+  <div class="flex-grow-1 d-flex flex-column">
+    <div id="admin-chat" style="flex: 1; min-height: 0;"></div>
+  </div>
+
 </div>
 
-<div id="admin-chat" style="max-width: 720px; margin: 0 auto;"></div>
-
 <script id="initialHistory" type="application/json"><%- JSON.stringify(history) %></script>
+<script id="activeSessionId" type="application/json"><%- JSON.stringify(activeSessionId) %></script>
 
 <script src="https://unpkg.com/quikchat/dist/quikchat-md.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
 <script src="/js/adminChatBot.js"></script>
 
 <%- include('partials/footer') %>
