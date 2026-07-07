@@ -134,6 +134,11 @@ router.post('/api', ensureAdmin, express.json(), async (req, res) => {
       messages: [...pastMessages, new HumanMessage(text)]
     });
 
+    for (const msg of result.messages) {
+      console.log('message type:', msg._getType ? msg._getType() : 'unknown');
+      console.log('message content:', JSON.stringify(msg.content).substring(0, 200));
+    }
+
     const lastMessage = result.messages[result.messages.length - 1];
     let reply = lastMessage.content;
     if (Array.isArray(reply)) {
@@ -142,10 +147,29 @@ router.post('/api', ensureAdmin, express.json(), async (req, res) => {
       reply = reply?.toString() || '(no reply)';
     }
 
+    // extract chart config from tool messages if any
+    let chart = null;
+    for (const msg of result.messages) {
+      if (msg.content && typeof msg.content === 'string') {
+        try {
+          const parsed = JSON.parse(msg.content);
+          console.log('parsed keys:', Object.keys(parsed));
+          if (parsed.chart && parsed.series) {
+            console.log('chart found!');
+            chart = parsed;
+          }
+        } catch (e) {
+          // not JSON, skip
+        }
+      }
+    }
+    console.log('final chart:', chart);
+
     await history.addUserMessage(text);
     await history.addAIChatMessage(reply);
 
-    res.json({ reply });
+    console.log('sending chart:', chart ? 'yes' : 'no');
+    res.json({ reply, chart });
   } catch (error) {
     console.error('Chat error:', error);
     res.status(500).json({ reply: 'Sorry, something went wrong.' });

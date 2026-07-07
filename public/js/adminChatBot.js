@@ -36,12 +36,22 @@
         body: JSON.stringify({ message: msg, sessionId: activeSessionId })
       });
       const data = await res.json();
+      console.log('data.chart:', data.chart);
       replyText = (data && data.reply) || '(no reply)';
+      chatInstance.messageAddNew(replyText, 'bot', 'left', 'bot');
+
+      if (data.chart) {
+        const messages = document.querySelectorAll('.quikchat-message');
+        const lastMessage = messages[messages.length - 1];
+        if (lastMessage) {
+          renderApexChart(lastMessage, data.chart);
+        }
+      }
     } catch (err) {
       console.error('Error calling /admin/chat/api', err);
       replyText = 'Error contacting server.';
+      chatInstance.messageAddNew(replyText, 'bot', 'left', 'bot');
     }
-    chatInstance.messageAddNew(replyText, 'bot', 'left', 'bot');
   });
 
   // seed history
@@ -50,6 +60,23 @@
       if (!item.text) return;
       chat.messageAddNew(item.text, item.role, item.side, item.role);
     });
+  }
+
+  function renderApexChart(targetElement, chartOptions) {
+    console.log('renderApexChart called', chartOptions);
+    if (!window.ApexCharts) {
+      console.warn('ApexCharts not loaded');
+      return;
+    }
+    const chartDiv = document.createElement('div');
+    chartDiv.style.width = '100%';
+    chartDiv.style.height = ((chartOptions.chart && chartOptions.chart.height) || 260) + 'px';
+    targetElement.appendChild(chartDiv);
+    try {
+      new window.ApexCharts(chartDiv, chartOptions).render();
+    } catch (e) {
+      console.error('Error rendering chart', e);
+    }
   }
 
   document.getElementById('newChatBtn').addEventListener('click', async () => {
