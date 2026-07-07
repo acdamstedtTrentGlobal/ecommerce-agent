@@ -21,21 +21,23 @@ class MariaDBChatHistory extends BaseChatMessageHistory {
 
   async getMessages() {
     const [rows] = await pool.execute(
-      `SELECT role, content FROM chat_messages WHERE session_id = ? ORDER BY created_at ASC`,
+      `SELECT role, content, chart_config FROM chat_messages WHERE session_id = ? ORDER BY created_at ASC`,
       [this.sessionId]
     );
-    return rows.map(row =>
-      row.role === 'human'
+    return rows.map(row => {
+      const msg = row.role === 'human'
         ? new HumanMessage(row.content)
-        : new AIMessage(row.content)
-    );
+        : new AIMessage(row.content);
+      msg.chartConfig = row.chart_config ? JSON.parse(row.chart_config) : null;
+      return msg;
+    });
   }
 
-  async addMessage(message) {
+  async addMessage(message, chartConfig = null) {
     const role = message._getType() === 'human' ? 'human' : 'ai';
     await pool.execute(
-      `INSERT INTO chat_messages (session_id, role, content) VALUES (?, ?, ?)`,
-      [this.sessionId, role, message.content]
+      `INSERT INTO chat_messages (session_id, role, content, chart_config) VALUES (?, ?, ?, ?)`,
+      [this.sessionId, role, message.content, chartConfig ? JSON.stringify(chartConfig) : null]
     );
   }
 
@@ -43,8 +45,8 @@ class MariaDBChatHistory extends BaseChatMessageHistory {
     await this.addMessage(new HumanMessage(content));
   }
 
-  async addAIChatMessage(content) {
-    await this.addMessage(new AIMessage(content));
+  async addAIChatMessage(content, chartConfig = null) {
+    await this.addMessage(new AIMessage(content), chartConfig);
   }
 
   async clear() {
@@ -86,6 +88,7 @@ router.get('/', ensureAdmin, async (req, res) => {
       text: m.content,
       role: m._getType() === 'human' ? 'user' : 'bot',
       side: m._getType() === 'human' ? 'right' : 'left',
+      chart: m.chartConfig || null
     }));
   }
 
@@ -134,11 +137,6 @@ router.post('/api', ensureAdmin, express.json(), async (req, res) => {
       messages: [...pastMessages, new HumanMessage(text)]
     });
 
-    for (const msg of result.messages) {
-      console.log('message type:', msg._getType ? msg._getType() : 'unknown');
-      console.log('message content:', JSON.stringify(msg.content).substring(0, 200));
-    }
-
     const lastMessage = result.messages[result.messages.length - 1];
     let reply = lastMessage.content;
     if (Array.isArray(reply)) {
@@ -153,9 +151,7 @@ router.post('/api', ensureAdmin, express.json(), async (req, res) => {
       if (msg.content && typeof msg.content === 'string') {
         try {
           const parsed = JSON.parse(msg.content);
-          console.log('parsed keys:', Object.keys(parsed));
           if (parsed.chart && parsed.series) {
-            console.log('chart found!');
             chart = parsed;
           }
         } catch (e) {
@@ -163,12 +159,9 @@ router.post('/api', ensureAdmin, express.json(), async (req, res) => {
         }
       }
     }
-    console.log('final chart:', chart);
 
     await history.addUserMessage(text);
-    await history.addAIChatMessage(reply);
-
-    console.log('sending chart:', chart ? 'yes' : 'no');
+    await history.addAIChatMessage(reply, chart);
     res.json({ reply, chart });
   } catch (error) {
     console.error('Chat error:', error);

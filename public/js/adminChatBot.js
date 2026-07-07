@@ -36,7 +36,6 @@
         body: JSON.stringify({ message: msg, sessionId: activeSessionId })
       });
       const data = await res.json();
-      console.log('data.chart:', data.chart);
       replyText = (data && data.reply) || '(no reply)';
       chatInstance.messageAddNew(replyText, 'bot', 'left', 'bot');
 
@@ -59,11 +58,17 @@
     initialHistory.forEach(function (item) {
       if (!item.text) return;
       chat.messageAddNew(item.text, item.role, item.side, item.role);
+      if (item.chart) {
+        const messages = document.querySelectorAll('.quikchat-message');
+        const lastMessage = messages[messages.length - 1];
+        if (lastMessage) {
+          renderApexChart(lastMessage, item.chart);
+        }
+      }
     });
   }
 
   function renderApexChart(targetElement, chartOptions) {
-    console.log('renderApexChart called', chartOptions);
     if (!window.ApexCharts) {
       console.warn('ApexCharts not loaded');
       return;
