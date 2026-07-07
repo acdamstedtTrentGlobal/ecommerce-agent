@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { model, modelWithTools } = require('../../gemini');
+const { model, modelWithTools, agent } = require('../../gemini');
 const { getCompletedOrdersTool, getCompletedOrdersForProductTool, tabulateSalesTool, getLowStockTool } = require('../tools/salesTools');
 const { BaseChatMessageHistory } = require('@langchain/core/chat_history');
 const { HumanMessage, AIMessage } = require('@langchain/core/messages');
@@ -60,15 +60,6 @@ const prompt = ChatPromptTemplate.fromMessages([
   new MessagesPlaceholder('history'),
   ['human', '{input}'],
 ]);
-
-// const chain = prompt.pipe(modelWithTools);
-
-// const chainWithHistory = new RunnableWithMessageHistory({
-//   runnable: chain,
-//   getMessageHistory: (sessionId) => new MariaDBChatHistory(sessionId),
-//   inputMessagesKey: 'input',
-//   historyMessagesKey: 'history',
-// });
 
 // render chat page
 router.get('/', ensureAdmin, async (req, res) => {
@@ -135,63 +126,26 @@ router.post('/api', ensureAdmin, express.json(), async (req, res) => {
     if (!text) return res.json({ reply: 'Please type something.' });
     if (!sessionId) return res.status(400).json({ reply: 'No session selected.' });
 
-    // original code to invoke simple model
-    // const response = await chainWithHistory.invoke(
-    //   { input: text },
-    //   { configurable: { sessionId: sessionId.toString() } }
-    // );
-
-    // new code that allows for tools with simple model
+    // the agent does the react loop logic on its own, simplifying the code
     const history = new MariaDBChatHistory(sessionId.toString());
     const pastMessages = await history.getMessages();
 
-    const allMessages = [...pastMessages, new HumanMessage(text)];
-    let currentMessages = allMessages;
-    let reply;
+    const result = await agent.invoke({
+      messages: [...pastMessages, new HumanMessage(text)]
+    });
 
-    // loop until model stops making tool calls
-    while (true) {
-      const response = await modelWithTools.invoke(currentMessages);
-
-      if (response.tool_calls && response.tool_calls.length > 0) {
-        const toolCall = response.tool_calls[0];
-        console.log('Tool call:', toolCall);
-
-        const allTools = [getCompletedOrdersTool, getCompletedOrdersForProductTool, tabulateSalesTool, getLowStockTool];
-        const toolToCall = allTools.find(t => t.name === toolCall.name);
-
-        let toolResult;
-        if (toolToCall) {
-          toolResult = await toolToCall.invoke(toolCall.args);
-          console.log('Tool result:', toolResult);
-        } else {
-          toolResult = 'Tool not found.';
-        }
-
-        // add tool call and result to messages and loop again
-        currentMessages = [
-          ...currentMessages,
-          response,
-          { role: 'tool', content: toolResult, tool_call_id: toolCall.id }
-        ];
-      } else {
-        // no more tool calls, extract text reply
-        const content = response.content;
-        if (Array.isArray(content)) {
-          reply = content.map(part => typeof part === 'string' ? part : part.text || '').join('');
-        } else {
-          reply = content?.toString() || '(no reply)';
-        }
-        break;
-      }
+    const lastMessage = result.messages[result.messages.length - 1];
+    let reply = lastMessage.content;
+    if (Array.isArray(reply)) {
+      reply = reply.map(part => typeof part === 'string' ? part : part.text || '').join('');
+    } else {
+      reply = reply?.toString() || '(no reply)';
     }
 
     await history.addUserMessage(text);
     await history.addAIChatMessage(reply);
 
     res.json({ reply });
-
-    // res.json({ reply: response.content });
   } catch (error) {
     console.error('Chat error:', error);
     res.status(500).json({ reply: 'Sorry, something went wrong.' });
