@@ -16,4 +16,8 @@ async function insertChunk(documentId, chunkText, chunkIndex, embedding) {
   return await documentData.insertChunk(documentId, chunkText, chunkIndex, embedding);
 }
 
-module.exports = { getByProductId, upsert, deleteChunks, insertChunk };
+async function searchChunks(documentId, queryEmbedding, limit = 5) {
+  return await documentData.searchChunkEmbeddings(documentId, queryEmbedding, limit);
+}
+
+module.exports = { getByProductId, upsert, deleteChunks, insertChunk, searchChunks };

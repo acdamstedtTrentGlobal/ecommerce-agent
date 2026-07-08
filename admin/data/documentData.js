@@ -27,4 +27,17 @@ async function insertChunk(documentId, chunkText, chunkIndex, embedding) {
   );
 }
 
-module.exports = { getDocumentByProductId, upsertDocument, deleteChunksByDocumentId, insertChunk };
+async function searchChunkEmbeddings(documentId, queryEmbedding, limit = 5) {
+  const vectorString = `[${queryEmbedding.join(',')}]`;
+  const [rows] = await pool.execute(
+    `SELECT chunk_text, VEC_DISTANCE(embedding, VEC_FromText('${vectorString}')) as distance
+     FROM document_chunks
+     WHERE document_id = ?
+     ORDER BY distance ASC
+     LIMIT ?`,
+    [documentId, limit]
+  );
+  return rows;
+}
+
+module.exports = { getDocumentByProductId, upsertDocument, deleteChunksByDocumentId, insertChunk, searchChunkEmbeddings };

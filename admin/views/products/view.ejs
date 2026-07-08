@@ -35,6 +35,19 @@
   </div>
 </div>
 
+<div class="card mb-4">
+  <div class="card-body">
+    <h5 class="card-title">Ask a Question About This Product</h5>
+    <div class="d-flex gap-2 mb-3">
+      <input class="form-control" type="text" id="questionInput" placeholder="e.g. What vitamins does this contain?" />
+      <button class="btn btn-outline-primary" id="askBtn" style="white-space: nowrap;">Ask Question</button>
+    </div>
+    <div id="answerResult" style="display:none;">
+      <div id="answerText"></div>
+    </div>
+  </div>
+</div>
+
 <div id="sentimentResult" class="card mb-4" style="display:none;">
   <div class="card-body">
     <h5 class="card-title">Sentiment Analysis</h5>
@@ -85,5 +98,35 @@
     }
   });
 </script>
+
+<script>
+  document.getElementById('askBtn').addEventListener('click', async () => {
+    const question = document.getElementById('questionInput').value.trim();
+    if (!question) return;
+
+    const btn = document.getElementById('askBtn');
+    btn.disabled = true;
+    btn.textContent = 'Thinking...';
+
+    try {
+      const res = await fetch('/admin/products/<%= product.id %>/ask', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question })
+      });
+      const data = await res.json();
+      document.getElementById('answerText').innerHTML = marked.parse(data.answer);
+      document.getElementById('answerResult').style.display = 'block';
+    } catch (err) {
+      console.error('Ask question failed:', err);
+      alert('Failed to get answer');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Ask Question';
+    }
+  });
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 
 <%- include('../partials/footer') %>

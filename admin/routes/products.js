@@ -254,4 +254,44 @@ Format your response in markdown.`;
   }
 });
 
+router.post('/:id/ask', ensureAdmin, express.json(), async (req, res) => {
+  try {
+    const { question } = req.body;
+    if (!question) return res.status(400).json({ answer: 'Please enter a question.' });
+
+    const doc = await documentServices.getByProductId(req.params.id);
+    if (!doc) return res.json({ answer: 'No PDF has been uploaded for this product. Please upload and chunk a PDF first.' });
+
+    const queryEmbedding = await generateEmbedding(question);
+    const chunks = await documentServices.searchChunks(doc.id, queryEmbedding);
+
+    if (chunks.length === 0) {
+      return res.json({ answer: 'No relevant information found. Please make sure the PDF has been chunked and embedded.' });
+    }
+
+    const context = chunks.map(c => c.chunk_text).join('\n\n');
+    const product = await productServices.getProductById(req.params.id);
+
+    const prompt = `You are a helpful product information assistant for ${product.name} by ${product.brand}.
+Answer the user's question based only on the following product documentation.
+
+Product Documentation:
+${context}
+
+User Question: ${question}
+
+Instructions:
+- Answer based ONLY on the provided documentation
+- If the documentation does not contain the answer, say so clearly
+- Be concise and helpful
+- Format your response in markdown`;
+
+    const response = await model.invoke(prompt);
+    res.json({ answer: response.content });
+  } catch (error) {
+    console.error('Ask question error:', error);
+    res.status(500).json({ answer: 'Error getting answer.' });
+  }
+});
+
 module.exports = router;
