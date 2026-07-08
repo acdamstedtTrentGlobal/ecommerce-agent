@@ -40,6 +40,18 @@ async function getReviewsByProductId(productId) {
   return await productData.getReviewsByProductId(productId);
 }
 
+async function getReviewById(reviewId) {
+  return await productData.getReviewById(reviewId);
+}
+
+async function updateReviewEmbedding(reviewId, embedding) {
+  return await productData.updateReviewEmbedding(reviewId, embedding);
+}
+
+async function searchReviewEmbeddings(productId, queryEmbedding, limit = 10) {
+  return await productData.searchReviewEmbeddings(productId, queryEmbedding, limit);
+}
+
 module.exports = {
   getAllProducts,
   getProductById,
@@ -50,5 +62,8 @@ module.exports = {
   getAllTags,
   getProductTags,
   setProductTags,
-  getReviewsByProductId
+  getReviewsByProductId,
+  getReviewById,
+  updateReviewEmbedding,
+  searchReviewEmbeddings
 };

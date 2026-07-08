@@ -1,5 +1,8 @@
 USE ecommerce;
 
+ALTER TABLE reviews MODIFY COLUMN embedding VECTOR(3072) NOT NULL;
+ALTER TABLE reviews ADD VECTOR INDEX (embedding);
+
 INSERT INTO reviews (product_id, title, review_text, review_date, rating) VALUES
 -- Nature Made Multi for Him (product 1)
 (1, 'Great daily multivitamin', 'I have been taking Nature Made Multi for Him for about six months now and I genuinely notice a difference in my energy levels throughout the day. The tablet is easy to swallow and does not cause any stomach upset when taken with breakfast. I appreciate that it does not contain iron since most men do not need extra iron supplementation. The USP verification gives me confidence that what is on the label is actually in the pill. Would definitely recommend to any man looking for a solid all-in-one daily vitamin.', '2026-01-15', 5),

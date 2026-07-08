@@ -2,6 +2,10 @@
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h1><%= product.name %></h1>
   <div>
+    <form method="post" action="/admin/products/<%= product.id %>/process-reviews" class="d-inline">
+      <button class="btn btn-outline-warning" type="submit">Process Reviews</button>
+    </form>
+    <button class="btn btn-outline-info" id="analyseSentimentsBtn">Analyse Sentiments</button>
     <a class="btn btn-outline-secondary" href="/admin/products/<%= product.id %>/edit">Edit</a>
     <a class="btn btn-outline-secondary" href="/admin/products">Back</a>
   </div>
@@ -31,6 +35,13 @@
   </div>
 </div>
 
+<div id="sentimentResult" class="card mb-4" style="display:none;">
+  <div class="card-body">
+    <h5 class="card-title">Sentiment Analysis</h5>
+    <div id="sentimentText"></div>
+  </div>
+</div>
+
 <h2 class="mb-3">Reviews</h2>
 <% if (reviews.length === 0) { %>
   <p class="text-muted">No reviews yet.</p>
@@ -51,5 +62,28 @@
     </div>
   <% }) %>
 <% } %>
+
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script>
+  document.getElementById('analyseSentimentsBtn').addEventListener('click', async () => {
+    const btn = document.getElementById('analyseSentimentsBtn');
+    btn.disabled = true;
+    btn.textContent = 'Analysing...';
+
+    try {
+      const res = await fetch('/admin/products/<%= product.id %>/analyse-sentiments');
+      const data = await res.json();
+
+      document.getElementById('sentimentText').innerHTML = marked.parse(data.sentiment);
+      document.getElementById('sentimentResult').style.display = 'block';
+    } catch (err) {
+      console.error('Sentiment analysis failed:', err);
+      alert('Failed to analyse sentiments');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Analyse Sentiments';
+    }
+  });
+</script>
 
 <%- include('../partials/footer') %>
