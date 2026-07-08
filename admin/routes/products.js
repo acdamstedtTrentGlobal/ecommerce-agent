@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const productServices = require('../services/productServices');
 const documentServices = require('../services/documentServices');
+const { extractTextFromPDF, chunkText, generateEmbedding } = require('../services/embeddingServices');
 const multer = require('multer');
 const path = require('path');
 
@@ -145,11 +146,35 @@ router.post('/:id/upload', ensureAdmin, upload.single('pdf'), async (req, res) =
   res.redirect(`/admin/products/${req.params.id}/edit`);
 });
 
-// stub for chunk & embed
+// chunk & embed pdf
 router.post('/:id/chunk-embed', ensureAdmin, async (req, res) => {
-  // TODO: implement chunking and embeddings with Gemini
-  console.log(`Stub: would chunk and embed for product ${req.params.id}`);
-  res.redirect(`/admin/products/${req.params.id}/edit`);
+  try {
+    const doc = await documentServices.getByProductId(req.params.id);
+    if (!doc || !doc.file_path) {
+      return res.status(400).send('No PDF uploaded for this product');
+    }
+
+    // extract text from PDF
+    const text = await extractTextFromPDF(doc.file_path);
+
+    // chunk the text
+    const chunks = chunkText(text);
+
+    // delete existing chunks
+    await documentServices.deleteChunks(doc.id);
+
+    // generate embeddings and insert chunks
+    for (let i = 0; i < chunks.length; i++) {
+      const embedding = await generateEmbedding(chunks[i]);
+      await documentServices.insertChunk(doc.id, chunks[i], i, embedding);
+    }
+
+    console.log(`Chunked and embedded ${chunks.length} chunks for product ${req.params.id}`);
+    res.redirect(`/admin/products/${req.params.id}/edit`);
+  } catch (error) {
+    console.error('Chunk and embed error:', error);
+    res.status(500).send('Error processing PDF');
+  }
 });
 
 // delete

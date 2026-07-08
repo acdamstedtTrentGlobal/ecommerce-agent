@@ -15,4 +15,16 @@ async function upsertDocument(productId, { file_path, content = null }) {
   return r.insertId;
 }
 
-module.exports = { getDocumentByProductId, upsertDocument };
+async function deleteChunksByDocumentId(documentId) {
+  await pool.execute(`DELETE FROM document_chunks WHERE document_id = ?`, [documentId]);
+}
+
+async function insertChunk(documentId, chunkText, chunkIndex, embedding) {
+  const vectorString = `[${embedding.join(',')}]`;
+  await pool.execute(
+    `INSERT INTO document_chunks (document_id, chunk_text, chunk_index, embedding) VALUES (?, ?, ?, VEC_FromText('${vectorString}'))`,
+    [documentId, chunkText, chunkIndex]
+  );
+}
+
+module.exports = { getDocumentByProductId, upsertDocument, deleteChunksByDocumentId, insertChunk };

@@ -8,4 +8,12 @@ async function upsert(productId, payload) {
   return await documentData.upsertDocument(productId, payload);
 }
 
-module.exports = { getByProductId, upsert };
+async function deleteChunks(documentId) {
+  return await documentData.deleteChunksByDocumentId(documentId);
+}
+
+async function insertChunk(documentId, chunkText, chunkIndex, embedding) {
+  return await documentData.insertChunk(documentId, chunkText, chunkIndex, embedding);
+}
+
+module.exports = { getByProductId, upsert, deleteChunks, insertChunk };
