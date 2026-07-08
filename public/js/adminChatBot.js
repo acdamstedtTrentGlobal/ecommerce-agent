@@ -28,30 +28,68 @@
 
     chatInstance.messageAddNew(msg, 'me', 'right', 'user');
 
-    let replyText = '(no reply)';
+    chatInstance.inputAreaSetEnabled(false);
+    chatInstance.inputAreaSetButtonText('Thinking...');
+
+    let steps = [];
+
     try {
       const res = await fetch('/admin/chat/api', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: msg, sessionId: activeSessionId })
       });
-      const data = await res.json();
-      replyText = (data && data.reply) || '(no reply)';
-      chatInstance.messageAddNew(replyText, 'bot', 'left', 'bot');
 
-      if (data.chart) {
-        const messages = document.querySelectorAll('.quikchat-message');
-        const lastMessage = messages[messages.length - 1];
-        if (lastMessage) {
-          renderApexChart(lastMessage, data.chart);
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      const thinkingId = chatInstance.messageAddNew('⏳ Thinking...', 'bot', 'left', 'bot');
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n\n');
+        buffer = lines.pop();
+
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          const data = JSON.parse(line.slice(6));
+
+          if (data.type === 'tool_call') {
+            steps.push(`🔧 Calling tool: **${data.tool}**`);
+            chatInstance.messageReplaceContent(thinkingId, steps.join('\n\n') + '\n\n⏳ Working...');
+          }
+
+          if (data.type === 'tool_result') {
+            steps.push(`✅ Got result from: **${data.tool}**`);
+            chatInstance.messageReplaceContent(thinkingId, steps.join('\n\n') + '\n\n⏳ Generating response...');
+          }
+
+          if (data.type === 'done') {
+            const replyText = data.reply || '(no reply)';
+            chatInstance.messageReplaceContent(thinkingId, replyText);
+
+            if (data.chart) {
+              const messages = document.querySelectorAll('.quikchat-message');
+              const lastMessage = messages[messages.length - 1];
+              if (lastMessage) renderApexChart(lastMessage, data.chart);
+            }
+          }
         }
       }
+      // at the end of the try block, after the while loop
+      chatInstance.inputAreaSetEnabled(true);
+      chatInstance.inputAreaSetButtonText('Send');
     } catch (err) {
       console.error('Error calling /admin/chat/api', err);
-      replyText = 'Error contacting server.';
-      chatInstance.messageAddNew(replyText, 'bot', 'left', 'bot');
+      chatInstance.messageAddNew('Error contacting server.', 'bot', 'left', 'bot');
+      chatInstance.inputAreaSetEnabled(true);
+      chatInstance.inputAreaSetButtonText('Send');
     }
-  });
+  }); 
 
   // seed history
   if (Array.isArray(initialHistory) && initialHistory.length) {

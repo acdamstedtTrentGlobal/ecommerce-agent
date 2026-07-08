@@ -129,43 +129,68 @@ router.post('/api', ensureAdmin, express.json(), async (req, res) => {
     if (!text) return res.json({ reply: 'Please type something.' });
     if (!sessionId) return res.status(400).json({ reply: 'No session selected.' });
 
-    // the agent does the react loop logic on its own, simplifying the code
     const history = new MariaDBChatHistory(sessionId.toString());
     const pastMessages = await history.getMessages();
 
-    const result = await agent.invoke({
+    // set up SSE
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+
+    const sendEvent = (type, data) => {
+      res.write(`data: ${JSON.stringify({ type, ...data })}\n\n`);
+    };
+
+    let reply = '';
+    let chart = null;
+    let lastAgentContent = null;
+
+    // agent.stream lets us see the agent's react loop
+    const stream = await agent.stream({
       messages: [...pastMessages, new HumanMessage(text)]
     });
 
-    const lastMessage = result.messages[result.messages.length - 1];
-    let reply = lastMessage.content;
-    if (Array.isArray(reply)) {
-      reply = reply.map(part => typeof part === 'string' ? part : part.text || '').join('');
-    } else {
-      reply = reply?.toString() || '(no reply)';
-    }
-
-    // extract chart config from tool messages if any
-    let chart = null;
-    for (const msg of result.messages) {
-      if (msg.content && typeof msg.content === 'string') {
-        try {
-          const parsed = JSON.parse(msg.content);
-          if (parsed.chart && parsed.series) {
-            chart = parsed;
+    for await (const step of stream) {
+      if (step.agent) {
+        const agentMsg = step.agent.messages[0];
+        if (agentMsg.tool_calls && agentMsg.tool_calls.length > 0) {
+          for (const toolCall of agentMsg.tool_calls) {
+            console.log(`🔧 [AGENT] Calling tool: ${toolCall.name}`, JSON.stringify(toolCall.args));
+            sendEvent('tool_call', { tool: toolCall.name, args: toolCall.args });
           }
-        } catch (e) {
-          // not JSON, skip
+        } else {
+          console.log(`💬 [AGENT] Final response generated`);
+          lastAgentContent = agentMsg.content;
         }
       }
+
+      if (step.tools) {
+        for (const toolMsg of step.tools.messages) {
+          console.log(`✅ [TOOL] Result from ${toolMsg.name}:`, toolMsg.content.substring(0, 300));
+          sendEvent('tool_result', { tool: toolMsg.name, result: toolMsg.content.substring(0, 200) });
+          try {
+            const parsed = JSON.parse(toolMsg.content);
+            if (parsed.chart && parsed.series) chart = parsed;
+          } catch (e) {}
+        }
+      }
+          }
+
+    if (Array.isArray(lastAgentContent)) {
+      reply = lastAgentContent.map(part => typeof part === 'string' ? part : part.text || '').join('');
+    } else {
+      reply = lastAgentContent?.toString() || '(no reply)';
     }
 
     await history.addUserMessage(text);
     await history.addAIChatMessage(reply, chart);
-    res.json({ reply, chart });
+    sendEvent('done', { reply, chart });
+    res.end();
+
   } catch (error) {
     console.error('Chat error:', error);
-    res.status(500).json({ reply: 'Sorry, something went wrong.' });
+    res.write(`data: ${JSON.stringify({ type: 'done', reply: 'Sorry, something went wrong.' })}\n\n`);
+    res.end();
   }
 });
 
