@@ -36,6 +36,10 @@ async function setProductTags(id, tagIds) {
   return await productData.setProductTags(id, tagIds);
 }
 
+async function getReviewsByProductId(productId) {
+  return await productData.getReviewsByProductId(productId);
+}
+
 module.exports = {
   getAllProducts,
   getProductById,
@@ -45,5 +49,6 @@ module.exports = {
   getAllCategories,
   getAllTags,
   getProductTags,
-  setProductTags
+  setProductTags,
+  getReviewsByProductId
 };

@@ -1,0 +1,55 @@
+<%- include('../partials/header', { title: product.name, admin }) %>
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1><%= product.name %></h1>
+  <div>
+    <a class="btn btn-outline-secondary" href="/admin/products/<%= product.id %>/edit">Edit</a>
+    <a class="btn btn-outline-secondary" href="/admin/products">Back</a>
+  </div>
+</div>
+
+<div class="row mb-4">
+  <div class="col-md-3">
+    <img src="<%= product.imageUrl %>" alt="<%= product.name %>" class="img-fluid rounded">
+  </div>
+  <div class="col-md-9">
+    <table class="table">
+      <tr><th>Brand</th><td><%= product.brand %></td></tr>
+      <tr><th>Price</th><td>$<%= product.price %></td></tr>
+      <tr><th>Stock</th><td><%= product.stock %></td></tr>
+      <tr><th>Description</th><td><%= product.description %></td></tr>
+      <tr>
+        <th>PDF</th>
+        <td>
+            <% if (product.file_path) { %>
+            <a href="<%= product.file_path %>" target="_blank">View PDF</a>
+            <% } else { %>
+            <span class="text-muted">No PDF uploaded</span>
+            <% } %>
+        </td>
+        </tr>
+    </table>
+  </div>
+</div>
+
+<h2 class="mb-3">Reviews</h2>
+<% if (reviews.length === 0) { %>
+  <p class="text-muted">No reviews yet.</p>
+<% } else { %>
+  <% reviews.forEach(r => { %>
+    <div class="card mb-3">
+      <div class="card-body">
+        <div class="d-flex justify-content-between">
+          <h5 class="card-title"><%= r.title %></h5>
+          <span class="text-warning">
+            <% for (let i = 0; i < r.rating; i++) { %>★<% } %>
+            <% for (let i = r.rating; i < 5; i++) { %>☆<% } %>
+          </span>
+        </div>
+        <p class="text-muted small"><%= new Date(r.review_date).toLocaleDateString() %></p>
+        <p class="card-text"><%= r.review_text %></p>
+      </div>
+    </div>
+  <% }) %>
+<% } %>
+
+<%- include('../partials/footer') %>

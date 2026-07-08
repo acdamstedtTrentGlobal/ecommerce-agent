@@ -19,7 +19,7 @@
   <% products.forEach(p => { %>
     <tr>
       <td><%= p.id %></td>
-      <td><%= p.name %></td>
+      <td><a href="/admin/products/<%= p.id %>/view"><%= p.name %></a></td>
       <td><%= p.brand %></td>
       <td><%= p.category_name %></td>
       <td>$<%= p.price %></td>
