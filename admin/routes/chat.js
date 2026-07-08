@@ -155,15 +155,18 @@ router.post('/api', ensureAdmin, express.json(), async (req, res) => {
         const agentMsg = step.agent.messages[0];
         if (agentMsg.tool_calls && agentMsg.tool_calls.length > 0) {
           for (const toolCall of agentMsg.tool_calls) {
+            console.log(`🔧 [AGENT] Calling tool: ${toolCall.name}`, JSON.stringify(toolCall.args));
             sendEvent('tool_call', { tool: toolCall.name, args: toolCall.args });
           }
         } else {
+          console.log(`💬 [AGENT] Final response generated`);
           lastAgentContent = agentMsg.content;
         }
       }
 
       if (step.tools) {
         for (const toolMsg of step.tools.messages) {
+          console.log(`✅ [TOOL] Result from ${toolMsg.name}:`, toolMsg.content.substring(0, 300));
           sendEvent('tool_result', { tool: toolMsg.name, result: toolMsg.content.substring(0, 200) });
           try {
             const parsed = JSON.parse(toolMsg.content);
@@ -171,7 +174,7 @@ router.post('/api', ensureAdmin, express.json(), async (req, res) => {
           } catch (e) {}
         }
       }
-    }
+          }
 
     if (Array.isArray(lastAgentContent)) {
       reply = lastAgentContent.map(part => typeof part === 'string' ? part : part.text || '').join('');
