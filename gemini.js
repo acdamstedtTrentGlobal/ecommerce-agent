@@ -2,6 +2,7 @@ const { ChatGoogle } = require('@langchain/google/node');
 const { createReactAgent } = require('@langchain/langgraph/prebuilt');
 const { getCompletedOrdersTool, getCompletedOrdersForProductTool, tabulateSalesTool, getLowStockTool } = require('./admin/tools/salesTools.js');
 const { generateApexChartTool } = require('./admin/tools/chartTools');
+const { searchProductBySemanticTool, answerProductQuestionTool } = require('./admin/tools/ragTools');
 
 const model = new ChatGoogle({
     model: 'gemini-3.1-flash-lite',
@@ -13,7 +14,9 @@ const tools = [
   getCompletedOrdersForProductTool,
   tabulateSalesTool,
   getLowStockTool,
-  generateApexChartTool
+  generateApexChartTool,
+  searchProductBySemanticTool,
+  answerProductQuestionTool
 ];
 
 const modelWithTools = new ChatGoogle({
