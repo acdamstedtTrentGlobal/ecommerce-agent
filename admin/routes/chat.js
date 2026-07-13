@@ -146,9 +146,10 @@ router.post('/api', ensureAdmin, express.json(), async (req, res) => {
     let lastAgentContent = null;
 
     // agent.stream lets us see the agent's react loop
-    const stream = await agent.stream({
-      messages: [...pastMessages, new HumanMessage(text)]
-    });
+    const stream = await agent.stream(
+      { messages: [...pastMessages, new HumanMessage(text)] },
+      { recursionLimit: 50, configurable: { sessionId: sessionId.toString() } }
+    );
 
     for await (const step of stream) {
       const keys = Object.keys(step);

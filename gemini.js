@@ -32,8 +32,7 @@ const agent = createAgent({
   model: model,
   tools,
   prompt: 'You are a helpful admin assistant for an ecommerce store. Format your responses using markdown.',
-  middleware: [todoListMiddleware()],
-  recursionLimit: 50
+  middleware: [todoListMiddleware()]
 });
 
 module.exports = { model, modelWithTools, agent };
