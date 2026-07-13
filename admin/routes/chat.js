@@ -151,6 +151,7 @@ router.post('/api', ensureAdmin, express.json(), async (req, res) => {
       { recursionLimit: 50, configurable: { sessionId: sessionId.toString() } }
     );
 
+    let planSent = false;
     for await (const step of stream) {
       const keys = Object.keys(step);
       if (keys.includes('model_request')) {
@@ -179,9 +180,11 @@ router.post('/api', ensureAdmin, express.json(), async (req, res) => {
 
         if (Array.isArray(content)) {
           for (const part of content) {
-            if (part.type === 'functionCall' && part.functionCall?.name !== 'write_todos') {
+            if (part.type === 'functionCall') {
               console.log(`🔧 [AGENT] Calling tool: ${part.functionCall.name}`, JSON.stringify(part.functionCall.args));
-              sendEvent('tool_call', { tool: part.functionCall.name, args: part.functionCall.args });
+              if (part.functionCall.name !== 'write_todos') {
+                sendEvent('tool_call', { tool: part.functionCall.name, args: part.functionCall.args });
+              }
             }
             if (part.type === 'text' && part.text) {
               console.log(`💬 [AGENT] Final response generated`);
@@ -196,6 +199,18 @@ router.post('/api', ensureAdmin, express.json(), async (req, res) => {
 
       if (step.tools) {
         for (const toolMsg of step.tools.messages) {
+          if (toolMsg.name === 'write_todos') {
+            try {
+              const todos = JSON.parse(toolMsg.content.replace('Updated todo list to ', ''));
+              if (!planSent) {
+                const plan = '📋 **Plan:**\n' + todos.map((t, i) => `${i + 1}. ${t.content}`).join('\n');
+                sendEvent('plan', { plan });
+                planSent = true;
+              }
+              console.log(`📋 [TODOS]`, JSON.stringify(todos));
+            } catch (e) {}
+            continue;
+          }
           console.log(`✅ [TOOL] Result from ${toolMsg.name}:`, toolMsg.content.substring(0, 300));
           sendEvent('tool_result', { tool: toolMsg.name, result: toolMsg.content.substring(0, 200) });
           try {

@@ -58,9 +58,16 @@
           if (!line.startsWith('data: ')) continue;
           const data = JSON.parse(line.slice(6));
 
-          if (data.type === 'tool_call') {
-            steps.push(`🔧 Calling tool: **${data.tool}**`);
+          if (data.type === 'plan') {
+            steps.push(data.plan);
             chatInstance.messageReplaceContent(thinkingId, steps.join('\n\n') + '\n\n⏳ Working...');
+          }
+
+          if (data.type === 'tool_call') {
+            if (data.tool !== 'write_todos') {
+              steps.push(`🔧 Calling tool: **${data.tool}**`);
+              chatInstance.messageReplaceContent(thinkingId, steps.join('\n\n') + '\n\n⏳ Working...');
+            }
           }
 
           if (data.type === 'tool_result') {
