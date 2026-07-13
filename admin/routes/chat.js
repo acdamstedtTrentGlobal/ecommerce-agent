@@ -151,16 +151,45 @@ router.post('/api', ensureAdmin, express.json(), async (req, res) => {
     });
 
     for await (const step of stream) {
-      if (step.agent) {
-        const agentMsg = step.agent.messages[0];
-        if (agentMsg.tool_calls && agentMsg.tool_calls.length > 0) {
-          for (const toolCall of agentMsg.tool_calls) {
-            console.log(`🔧 [AGENT] Calling tool: ${toolCall.name}`, JSON.stringify(toolCall.args));
-            sendEvent('tool_call', { tool: toolCall.name, args: toolCall.args });
+      const keys = Object.keys(step);
+      if (keys.includes('model_request')) {
+        const rawMsg = step.model_request.messages?.[0];
+        const content = rawMsg?.content;
+
+        if (Array.isArray(content)) {
+          for (const part of content) {
+            if (part.type === 'functionCall' && part.functionCall?.name !== 'write_todos') {
+              console.log(`🔧 [AGENT] Calling tool: ${part.functionCall.name}`, JSON.stringify(part.functionCall.args));
+              sendEvent('tool_call', { tool: part.functionCall.name, args: part.functionCall.args });
+            }
+            if (part.type === 'text' && part.text) {
+              console.log(`💬 [AGENT] Final response generated`);
+              lastAgentContent = part.text;
+            }
           }
-        } else {
+        } else if (typeof content === 'string' && content) {
           console.log(`💬 [AGENT] Final response generated`);
-          lastAgentContent = agentMsg.content;
+          lastAgentContent = content;
+        }
+      }
+      if (step.model_request) {
+        const msg = step.model_request.messages?.[0];
+        const content = msg?.kwargs?.content;
+
+        if (Array.isArray(content)) {
+          for (const part of content) {
+            if (part.type === 'functionCall' && part.functionCall?.name !== 'write_todos') {
+              console.log(`🔧 [AGENT] Calling tool: ${part.functionCall.name}`, JSON.stringify(part.functionCall.args));
+              sendEvent('tool_call', { tool: part.functionCall.name, args: part.functionCall.args });
+            }
+            if (part.type === 'text' && part.text) {
+              console.log(`💬 [AGENT] Final response generated`);
+              lastAgentContent = part.text;
+            }
+          }
+        } else if (typeof content === 'string' && content) {
+          console.log(`💬 [AGENT] Final response generated`);
+          lastAgentContent = content;
         }
       }
 
@@ -174,7 +203,7 @@ router.post('/api', ensureAdmin, express.json(), async (req, res) => {
           } catch (e) {}
         }
       }
-          }
+    }
 
     if (Array.isArray(lastAgentContent)) {
       reply = lastAgentContent.map(part => typeof part === 'string' ? part : part.text || '').join('');

@@ -1,5 +1,5 @@
 const { ChatGoogle } = require('@langchain/google/node');
-const { createReactAgent } = require('@langchain/langgraph/prebuilt');
+const { createAgent, todoListMiddleware } = require('langchain');
 const { getCompletedOrdersTool, getCompletedOrdersForProductTool, tabulateSalesTool, getLowStockTool } = require('./admin/tools/salesTools.js');
 const { generateApexChartTool } = require('./admin/tools/chartTools');
 const { searchProductBySemanticTool, answerProductQuestionTool } = require('./admin/tools/ragTools');
@@ -24,10 +24,11 @@ const modelWithTools = new ChatGoogle({
     apiKey: process.env.GEMINI_API_KEY,
 }).bindTools(tools);
 
-const agent = createReactAgent({
-  llm: model,
+const agent = createAgent({
+  model: model,
   tools,
-  messageModifier: 'You are a helpful admin assistant for an ecommerce store. Format your responses using markdown. When you generate a chart using the generate_apex_chart tool, do NOT include any chart URLs or image links in your text response — the chart will be rendered automatically by the frontend.',
+  prompt: 'You are a helpful admin assistant for an ecommerce store. Format your responses using markdown.',
+  middleware: [todoListMiddleware()],
 });
 
 module.exports = { model, modelWithTools, agent };
