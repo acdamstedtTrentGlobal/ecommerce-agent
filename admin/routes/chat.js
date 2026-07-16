@@ -8,6 +8,75 @@ const { ChatPromptTemplate, MessagesPlaceholder } = require('@langchain/core/pro
 const { RunnableWithMessageHistory } = require('@langchain/core/runnables');
 const pool = require('../../database');
 
+const { hitlAgent } = require('../../gemini');
+const { Command } = require('@langchain/langgraph');
+
+const pendingApprovals = new Map();
+
+function getHitlConfig(sessionId) {
+  return {
+    recursionLimit: 50,
+    configurable: { thread_id: `hitl_${sessionId}` }
+  };
+}
+
+async function runHitlAgent(input, sessionId, sendEvent) {
+  const config = getHitlConfig(sessionId);
+  const result = await hitlAgent.invoke(input, { ...config, version: 'v2' });
+
+  if (result.__interrupt__) {
+    const value = result.__interrupt__[0].value;
+    console.log('🛑 [HITL INTERRUPT]', JSON.stringify(value).substring(0, 200));
+
+    if (value?.actionRequests) {
+      const actionCount = value.actionRequests.length;
+      
+      const actionList = value.actionRequests.map((a, i) => 
+        `${i + 1}. Product ID: **${a.args.product_id}** — **${a.args.stock_amount}** units`
+      ).join('\n');
+
+      const message = actionCount > 1
+        ? `⚠️ **${actionCount} Restock Orders Require Approval**\n\n${actionList}\n\nType **yes** to approve all or **no** to reject all.`
+        : value.actionRequests[0].description;
+
+      sendEvent('needs_approval', {
+        kind: 'action',
+        tool: value.actionRequests[0].name,
+        message,
+        actionCount
+      });
+      return { interrupted: true, interruptType: 'hitl', actionCount };
+    }
+    return { interrupted: true, interruptType: 'unknown', actionCount: 1 };
+  }
+
+  const messages = result.messages || result.value?.messages || [];
+  const lastMsg = messages[messages.length - 1];
+  let lastAgentContent = null;
+  let chart = null;
+
+  if (lastMsg) {
+    const content = lastMsg.content;
+    if (Array.isArray(content)) {
+      for (const part of content) {
+        if (part.type === 'text' && part.text) lastAgentContent = part.text;
+      }
+    } else if (typeof content === 'string' && content) {
+      lastAgentContent = content;
+    }
+    for (const msg of messages) {
+      if (msg.content && typeof msg.content === 'string') {
+        try {
+          const parsed = JSON.parse(msg.content);
+          if (parsed.chart && parsed.series) chart = parsed;
+        } catch (e) {}
+      }
+    }
+  }
+
+  return { interrupted: false, lastAgentContent, chart };
+}
+
 function ensureAdmin(req, res, next) {
   if (req.session && req.session.admin) return next();
   return res.redirect('/admin/login');
@@ -236,6 +305,110 @@ router.post('/api', ensureAdmin, express.json(), async (req, res) => {
     console.error('Chat error:', error);
     res.write(`data: ${JSON.stringify({ type: 'done', reply: 'Sorry, something went wrong.' })}\n\n`);
     res.end();
+  }
+});
+
+router.post('/hitl', ensureAdmin, express.json(), async (req, res) => {
+  try {
+    const { message, sessionId } = req.body || {};
+    const text = (message || '').toString().trim();
+    if (!text) return res.json({ reply: 'Please type something.' });
+    if (!sessionId) return res.status(400).json({ reply: 'No session selected.' });
+
+    const history = new MariaDBChatHistory(sessionId.toString());
+    const pastMessages = await history.getMessages();
+
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+
+    const sendEvent = (type, data) => {
+      res.write(`data: ${JSON.stringify({ type, ...data })}\n\n`);
+    };
+
+    sendEvent('thinking', { message: '⏳ Thinking...' });
+
+    const result = await runHitlAgent(
+      { messages: [...pastMessages, new HumanMessage(text)] },
+      sessionId.toString(),
+      sendEvent
+    );
+
+    if (result.interrupted) {
+      pendingApprovals.set(sessionId.toString(), {
+        res,
+        sendEvent,
+        history,
+        userText: text,
+        interruptType: result.interruptType,
+        actionCount: result.actionCount || 1
+      });
+      return;
+    }
+
+    const reply = result.lastAgentContent?.toString() || '(no reply)';
+    await history.addUserMessage(text);
+    await history.addAIChatMessage(reply, result.chart);
+    sendEvent('done', { reply, chart: result.chart });
+    res.end();
+
+  } catch (error) {
+    console.error('HITL chat error:', error);
+    res.write(`data: ${JSON.stringify({ type: 'done', reply: 'Sorry, something went wrong.' })}\n\n`);
+    res.end();
+  }
+});
+
+router.post('/approve', ensureAdmin, express.json(), async (req, res) => {
+  try {
+    const { message, sessionId } = req.body || {};
+    const text = (message || '').toString().trim();
+    if (!sessionId) return res.status(400).json({ error: 'No session.' });
+
+    const pending = pendingApprovals.get(sessionId.toString());
+    if (!pending) return res.status(400).json({ error: 'No pending approval.' });
+
+    const approved = ['yes', 'y', 'ok', 'approve', 'proceed'].includes(text.toLowerCase());
+    const { res: pendingRes, sendEvent, history, userText, actionCount } = pending;
+
+    sendEvent(approved ? 'approved' : 'rejected', {
+      message: approved ? '✅ Approved! Continuing...' : '❌ Rejected.'
+    });
+
+    const resumeInput = new Command({
+      resume: {
+        decisions: Array(actionCount || 1).fill({
+          type: approved ? 'approve' : 'reject',
+          ...(approved ? {} : { message: `User rejected: ${message}` })
+        })
+      }
+    });
+
+    const result = await runHitlAgent(resumeInput, sessionId.toString(), sendEvent);
+
+    if (result.interrupted) {
+      pendingApprovals.set(sessionId.toString(), {
+        res: pendingRes,
+        sendEvent,
+        history,
+        userText,
+        interruptType: result.interruptType,
+        actionCount: result.actionCount || 1
+      });
+      return res.json({ waiting: true });
+    }
+
+    const reply = result.lastAgentContent?.toString() || '(no reply)';
+    await history.addUserMessage(userText);
+    await history.addAIChatMessage(reply, result.chart);
+    sendEvent('done', { reply, chart: result.chart });
+    pendingRes.end();
+    pendingApprovals.delete(sessionId.toString());
+    res.json({ done: true });
+
+  } catch (error) {
+    console.error('Approve error:', error);
+    res.status(500).json({ error: 'Error resuming.' });
   }
 });
 

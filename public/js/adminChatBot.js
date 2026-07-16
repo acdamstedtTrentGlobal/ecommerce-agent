@@ -9,6 +9,7 @@
   } catch (e) {}
 
   let activeSessionId = null;
+  let waitingForApproval = false;
   try {
     activeSessionId = JSON.parse(document.getElementById('activeSessionId').textContent);
   } catch (e) {}
@@ -26,6 +27,25 @@
       window.history.pushState({}, '', `/admin/chat?session=${activeSessionId}`);
     }
 
+    if (waitingForApproval) {
+      waitingForApproval = false;
+      chatInstance.messageAddNew(msg, 'me', 'right', 'user');
+      chatInstance.inputAreaSetEnabled(false);
+      chatInstance.inputAreaSetButtonText('Thinking...');
+      try {
+        await fetch('/admin/chat/approve', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: msg, sessionId: activeSessionId })
+        });
+      } catch (err) {
+        console.error('Approve error:', err);
+      }
+      chatInstance.inputAreaSetEnabled(true);
+      chatInstance.inputAreaSetButtonText('Send');
+      return;
+    }
+
     chatInstance.messageAddNew(msg, 'me', 'right', 'user');
 
     chatInstance.inputAreaSetEnabled(false);
@@ -34,7 +54,7 @@
     let steps = [];
 
     try {
-      const res = await fetch('/admin/chat/api', {
+      const res = await fetch('/admin/chat/hitl', { // thinking chatbot is /admin/chat/api
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: msg, sessionId: activeSessionId })
@@ -57,6 +77,21 @@
         for (const line of lines) {
           if (!line.startsWith('data: ')) continue;
           const data = JSON.parse(line.slice(6));
+
+          if (data.type === 'needs_approval') {
+            steps.push(data.message || '⚠️ Approval required.');
+            chatInstance.messageReplaceContent(thinkingId, steps.join('\n\n') + '\n\n**Type yes to proceed or no to reject.**');
+            waitingForApproval = true;
+            chatInstance.inputAreaSetEnabled(true);
+            chatInstance.inputAreaSetButtonText('Send');
+          }
+
+          if (data.type === 'rejected') {
+            steps.push('❌ Rejected.');
+            chatInstance.messageReplaceContent(thinkingId, steps.join('\n\n') + '\n\n⏳ Processing...');
+            chatInstance.inputAreaSetEnabled(false);
+            chatInstance.inputAreaSetButtonText('Thinking...');
+          }
 
           if (data.type === 'plan') {
             steps.push(data.plan);
