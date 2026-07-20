@@ -47,7 +47,7 @@ const openaiModel = new ChatOpenAI({
 });
 
 const hitlAgent = createAgent({
-  model: openaiModel,
+  model: model, // switch to openaiModel for correct hitl behavior
   tools,
   prompt: `You are a helpful admin assistant for an ecommerce store. Format your responses using markdown.
 
